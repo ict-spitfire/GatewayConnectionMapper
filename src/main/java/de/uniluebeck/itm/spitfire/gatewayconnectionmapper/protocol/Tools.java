@@ -108,7 +108,10 @@ public class Tools {
     public static byte[] getHWaddrAsBytes(String hwAddr) throws Exception {
         String a = hwAddr.replace(":", "");
         a = a.replace(" ", "");
+        a = a.replace("\n", "");
 
+        System.out.println("Address: '" + a + "', length: " + a.length());
+        
         if (a.length() != 12) {
             throw new Exception("Invalid mac address: " + a);
         }

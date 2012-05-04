@@ -24,20 +24,29 @@
  */
 package de.uniluebeck.itm.spitfire.gatewayconnectionmapper;
 
-import java.io.IOException;
-import java.util.LinkedList;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.*;
+
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.IFReadWriter;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.IFReader;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import static de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionTable.*;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.PcapIF;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.TUNIF;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.EthernetFrame;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6;
-import java.net.InetAddress;
+
+import java.util.Enumeration;
 import java.util.List;
 
+import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.Tools;
 import org.apache.log4j.*;
+import sun.misc.IOUtils;
 
 import static de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.Tools.*;
 
@@ -57,7 +66,7 @@ import static de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.Tools.
  */
 public class ConnectionMapper {
     //Logger
-    public static Logger logger = Logger.getLogger(ConnectionMapper.class.getName());
+    public static Logger log = Logger.getLogger(ConnectionMapper.class.getName());
 
     //Has to be the same IP owned by the tun interface
     public static String tunBoundIP;
@@ -120,7 +129,6 @@ public class ConnectionMapper {
      * root under linux.
      * 
      * @param tunWrapperPath path to the TUN wrapper C library
-     * @param log4jLogger log4j Logger
      * @param tunBoundIP IP which is bound to the TUN interface
      * @param localUdpServerPort port on which the UDP server listens
      * @param localHttpServerPort port on which the TCP server listens
@@ -133,7 +141,7 @@ public class ConnectionMapper {
      * @param tunNetIf tun interface name
      * @throws Exception will be thrown when starting fails
      */
-    public static void start(String tunWrapperPath, Logger log4jLogger,
+    private static void start(String tunWrapperPath,
             String tunBoundIP, int localUdpServerPort, int localHttpServerPort,
             String tunUdpIP, String tunTcpIP,
             String udpNetIf, String udpNetIfMac,
@@ -143,7 +151,8 @@ public class ConnectionMapper {
         //load TUN wrapper
         System.load(tunWrapperPath);
         
-        //logger = log4jLogger;
+        
+        //log = log4jLogger;
         ConnectionMapper.tunBoundIP = tunBoundIP;
         ConnectionMapper.localUdpServerPort = localUdpServerPort;
         ConnectionMapper.localTcpServerPort = localHttpServerPort;
@@ -170,7 +179,7 @@ public class ConnectionMapper {
         udpThread.start();
         tunThread.start();
 
-        logger.info("GatewayConnectionMapper started.");
+        log.info("GatewayConnectionMapper started.");
         
         //TODO create function to stop connection mapper
         //TODO prevent starting when ConnectionMapper already runs
@@ -183,7 +192,6 @@ public class ConnectionMapper {
      * root under linux.
      * 
      * @param tunWrapperPath path to the TUN wrapper C library
-     * @param log4jLogger log4j Logger
      * @param tunBoundIP IP which is bound to the TUN interface
      * @param localUdpServerPort port on which the UDP server listens
      * @param localHttpServerPort port on which the TCP server listens
@@ -197,7 +205,7 @@ public class ConnectionMapper {
      * @param localBoundIPs
      * @throws Exception will be thrown when starting fails
      */
-    public static void start(String tunWrapperPath, Logger log4jLogger, 
+    private static void start(String tunWrapperPath,
             String tunBoundIP, int localUdpServerPort, int localHttpServerPort,
             String tunUdpIP, String tunTcpIP,
             String udpNetIf, String udpNetIfMac,
@@ -208,10 +216,178 @@ public class ConnectionMapper {
             ConnectionMapper.localBoundIPs.add(a);
         }
 
-        start(tunWrapperPath, log4jLogger, tunBoundIP, localUdpServerPort, 
+        start(tunWrapperPath, tunBoundIP, localUdpServerPort, 
                 localHttpServerPort, tunUdpIP, tunTcpIP, udpNetIf, udpNetIfMac, 
-                tcpNetIf, tcpNetIfMac, tunNetIf);
+                tcpNetIf, tcpNetIfMac, tunNetIf, localBoundIPs);
     }
+
+    public static void start(String udpNetworkInterfaceName, String tcpNetworkInterfaceName,
+                             String tunNetworkInterfaceName, int udpServerPort, int tcpServerPort)
+            throws URISyntaxException, SocketException, Exception {
+
+        String TunWrapperLibraryName = "/libTUNWrapperCdl.so";
+        InputStream inputStream = ConnectionMapper.class.getResourceAsStream(TunWrapperLibraryName);
+        File libFile = File.createTempFile("libTunWrapperCdl", ".so");
+
+        log.info("Extract TUN wrapper library to path: " + libFile.getAbsolutePath());
+        FileOutputStream outputStream = new FileOutputStream(libFile);
+
+        int nextByte = inputStream.read();
+        while(nextByte != -1){
+            outputStream.write(nextByte);
+            nextByte = inputStream.read();
+        }
+
+        inputStream.close();
+        outputStream.close();
+
+        log.debug("Path of library 'libTUNWrapperCdl.so': " + libFile.getAbsolutePath());
+
+        log.debug("File exists: " + libFile.exists());
+        
+        //UDP network interface
+        NetworkInterface udpNetworkInterface = NetworkInterface.getByName(udpNetworkInterfaceName);
+        
+        List<Inet6Address> udpNetworkInterfaceIpv6Addresses = getGlobalUniqueIpv6Addresses(udpNetworkInterface);
+        if(udpNetworkInterfaceIpv6Addresses.isEmpty()){
+            throw new SocketException("No global unique IPv6 address for UDP network interface (" +
+                udpNetworkInterface.getName() + ").");
+        }
+
+        localBoundIPs.add(udpNetworkInterfaceIpv6Addresses.get(0));
+
+        String udpNetworkInterfaceIpv6Address =
+                removeScopeAndShorten(getGlobalUniqueIpv6Addresses(udpNetworkInterface).get(0).getHostAddress());
+        log.debug("UDP network interface (" + udpNetworkInterface.getName() +
+                ") global unique Ipv6 address: " + udpNetworkInterfaceIpv6Address);
+
+        String udpNetworkInterfaceHardwareAddress = Tools.getBytesAsString(udpNetworkInterface.getHardwareAddress());
+        log.debug("UDP network interface (" + udpNetworkInterface.getName() +
+                ") hardware address: " + udpNetworkInterfaceHardwareAddress);
+
+
+        //TCP network interface
+        NetworkInterface tcpNetworkInterface = NetworkInterface.getByName(tcpNetworkInterfaceName);
+
+        List<Inet6Address> tcpNetworkInterfaceIpv6Addresses = getGlobalUniqueIpv6Addresses(tcpNetworkInterface);
+        if(tcpNetworkInterfaceIpv6Addresses.isEmpty()){
+            throw new SocketException("No global unique IPv6 address for TCPnetwork interface (" +
+                    tcpNetworkInterface.getName() + ").");
+        }
+        localBoundIPs.add(tcpNetworkInterfaceIpv6Addresses.get(0));
+
+        String tcpNetworkInterfaceIpv6Address =
+                removeScopeAndShorten(tcpNetworkInterfaceIpv6Addresses.get(0).getHostAddress());
+        log.debug("TCP network interface (" + tcpNetworkInterface.getName() +
+                ") global unique Ipv6 address: " + tcpNetworkInterfaceIpv6Address);
+
+        String tcpNetworkInterfaceHardwareAddress = Tools.getBytesAsString(tcpNetworkInterface.getHardwareAddress());
+        log.debug("TCP network interface (" + tcpNetworkInterface.getName() +
+                ") hardware address: " + tcpNetworkInterfaceHardwareAddress);
+
+
+        //TUN network interface
+        NetworkInterface tunNetworkInterface = NetworkInterface.getByName(tunNetworkInterfaceName);
+        if(tunNetworkInterface == null){
+            throw new SocketException("Network interface does not exist: " + tunNetworkInterfaceName);
+        }
+
+        List<Inet6Address> tunNetworkInterfaceIpv6Addresses = getGlobalUniqueIpv6Addresses(tunNetworkInterface);
+        if(tunNetworkInterfaceIpv6Addresses.size() < 1){
+            throw new SocketException("1 bound global unique IPv6 address for TCPnetwork interface (" +
+                    tcpNetworkInterface.getName() + ") necessary but only " +
+                    tunNetworkInterfaceIpv6Addresses.size() + " are bound.");
+        }
+
+        localBoundIPs.add(tunNetworkInterfaceIpv6Addresses.get(0));
+        
+        String tunNetworkInterfaceIpv6Address =
+                removeScopeAndShorten(tunNetworkInterfaceIpv6Addresses.get(0).getHostAddress());
+        log.debug("TUN network interface (" + tunNetworkInterface.getName() +
+                ") global unique Ipv6 address: " + tunNetworkInterfaceIpv6Address);
+
+        
+        //virtual TUN interfaces
+//        String tunUdpNetworkInterfaceIpv6Address =
+//                removeScopeAndShorten(getGlobalUniqueIpv6Addresses(tunNetworkInterface).get(1).getHostAddress());
+        String tunUdpNetworkInterfaceIpv6Address = "fd00::33";
+        log.debug("TUN UDP network interface global IPv6 address: " + tunUdpNetworkInterfaceIpv6Address);
+
+//        String tunTcpNetworkInterfaceIpv6Address =
+//                removeScopeAndShorten(getGlobalUniqueIpv6Addresses(tunNetworkInterface).get(2).getHostAddress());
+        String tunTcpNetworkInterfaceIpv6Address = "fd00::32";
+        log.debug("TUN TCP network interface global IPv6 address: " + tunTcpNetworkInterfaceIpv6Address);
+        
+
+        start(libFile.getAbsolutePath(), tunNetworkInterfaceIpv6Address, udpServerPort, tcpServerPort,
+                tunUdpNetworkInterfaceIpv6Address, tunTcpNetworkInterfaceIpv6Address,
+                udpNetworkInterfaceName, udpNetworkInterfaceHardwareAddress,
+                tcpNetworkInterfaceName, tcpNetworkInterfaceHardwareAddress,
+                tunNetworkInterfaceName);
+    }
+    
+    private static String removeScopeAndShorten(String address){
+        String result;
+        if(address.indexOf("%") > -1){
+            result = address.substring(0, address.indexOf("%"));
+        }
+        else{
+            result = address;
+        }
+        return result.replaceAll("((?:(?:^|:)0+\\b){2,}):?(?!\\S*\\b\\1:0+\\b)(\\S*)", "::$2");
+    }
+
+    private static List<Inet6Address> getGlobalUniqueIpv6Addresses(NetworkInterface networkInterface){
+
+        List<Inet6Address> result = new ArrayList<Inet6Address>(); 
+        
+        Enumeration<InetAddress> networkInterfaceInetAddresses = networkInterface.getInetAddresses();
+        while(networkInterfaceInetAddresses.hasMoreElements()){
+            InetAddress address = networkInterfaceInetAddresses.nextElement();
+            try{
+                if(isGlobalUnicastAddress((Inet6Address) address)){
+                    result.add((Inet6Address) address);
+                }
+            }
+            catch(ClassCastException e){
+                log.debug("Address for interface " + networkInterface.getName() + " is no global unique " +
+                        "IPv6 address: " + address.getHostAddress() + ". Trying next one (if any).");
+            }
+        }
+        
+        return result;
+    }
+
+    public static String toHexString(byte[] b){
+        String result = "";
+        for (int i=0; i < b.length; i++) {
+            result += Integer.toString((b[i] & 0xff) + 0x100, 16).substring(1) + ":";
+        }
+        return result.substring(0, Math.max(result.length() - 1, 0));
+    }
+
+    /**
+     *
+     * @param address
+     * @return
+     */
+    private static boolean isGlobalUnicastAddress(Inet6Address address){
+
+        if(address.isLinkLocalAddress()){
+            return false;
+        }
+
+        if(address.isLoopbackAddress()){
+            return false;
+        }
+
+        if(address.isMulticastAddress()){
+            return false;
+        }
+
+        return true;
+    }
+
 
     /**
      * Test if destination of an IPv6 packet is a local bound ip.
@@ -246,7 +422,7 @@ public class ConnectionMapper {
             try {
                 readPacket = new IPv6(framePayload);
             } catch (Exception e) {
-                logger.debug("UDP IF: Non IPv6 packet received. Will be ignored...");
+                log.debug("UDP IF: Non IPv6 packet received. Will be ignored...");
                 //drop packet
                 return;
             }
@@ -279,7 +455,7 @@ public class ConnectionMapper {
                         request = table.getTcpRequest(mappedPort);
                     }
 
-                    ConnectionMapper.logger.debug("UDP IF: Incoming UDP packet mapped to " + request);
+                    ConnectionMapper.log.debug("UDP IF: Incoming UDP packet mapped to " + request);
                     //modify IPv6 packet
                     readPacket.setSourceIP(InetAddress.getByName(ConnectionMapper.tunVirtualUdpIP));
                     readPacket.setSourcePort(packetSourcePort);
@@ -318,7 +494,7 @@ public class ConnectionMapper {
             try {
                 readPacket = new IPv6(framePayload);
             } catch (Exception e) {
-                logger.debug("TCP IF: Non IPv6 packet received. Will be ignored...");
+                log.debug("TCP IF: Non IPv6 packet received. Will be ignored...");
                 //drop packet
                 return;
             }
@@ -333,7 +509,7 @@ public class ConnectionMapper {
             
             if (readPacket.isTCP()) {
                 ConnectionTable table = ConnectionTable.getInstance();
-                ConnectionMapper.logger.debug("TCP IF: TCP packet received: " + readPacket);
+                ConnectionMapper.log.debug("TCP IF: TCP packet received: " + readPacket);
                 int mappedPort = table.getMappedPortFromTCPResponseForUDPRequest(readPacket);
                 if (readPacket.getDestPort() == ConnectionMapper
                     .virtualTCPServerPort || mappedPort != -1) {
@@ -352,7 +528,7 @@ public class ConnectionMapper {
                         request = table.getUdpRequest(mappedPort);
                     }
 
-                    ConnectionMapper.logger.debug("TCP IF: Incoming TCP packet mapped to " + request);
+                    ConnectionMapper.log.debug("TCP IF: Incoming TCP packet mapped to " + request);
                     //modify IPv6 packet
                     readPacket.setSourceIP(InetAddress.getByName(ConnectionMapper.tunVirtualTcpIP));
                     readPacket.setSourcePort(packetSourcePort);
@@ -388,8 +564,8 @@ public class ConnectionMapper {
             if (request == null) {
                 //readPacket cannot be associated to a table entry
                 //no information available to restore originally connection data
-                ConnectionMapper.logger.error("Unmappable packet on tun if: " + readPacket
-                + " Maybe caused by gateway restart?");
+                ConnectionMapper.log.error("Unmappable packet on tun if: " + readPacket
+                        + " Maybe caused by gateway restart?");
                 return;
             }
             if (readPacket.getSourcePort() != ConnectionMapper.localTcpServerPort) {
@@ -405,14 +581,14 @@ public class ConnectionMapper {
             //please refer to "GatewayConnectionMapper - Sequenzdiagramm.pdf"
             if (request instanceof TcpRequest) {
                 //request is a TCP request to a UDP server
-                ConnectionMapper.logger.debug("TUN IF: TCP / TCP Request at " + request);
+                ConnectionMapper.log.debug("TUN IF: TCP / TCP Request at " + request);
                 readPacket.setSourceIP(request.getDestIP());
                 readPacket.setSourcePort(request.getDestPort());
                 readPacket.setDestIP(request.getSourceIP());
                 readPacket.setDestPort(request.getSourcePort());
             } else {
                 //request is a UDP request to a TCP server
-                ConnectionMapper.logger.debug("TUN IF: TCP / UDP Request at " + request);
+                ConnectionMapper.log.debug("TUN IF: TCP / UDP Request at " + request);
                 readPacket.setSourceIP(request.getSourceIP());
                 readPacket.setSourcePort(request.getLocalTcpPort());
                 readPacket.setDestIP(request.getDestIP());
@@ -426,8 +602,8 @@ public class ConnectionMapper {
             if (request == null) {
                 //readPacket cannot be associated to a table entry
                 //no information available to restore originally connection data
-                ConnectionMapper.logger.error("Unmappable packet on tun if: " + readPacket
-                + " Maybe caused by gateway restart?");
+                ConnectionMapper.log.error("Unmappable packet on tun if: " + readPacket
+                        + " Maybe caused by gateway restart?");
                 return;
             }
             if (readPacket.getSourcePort() != ConnectionMapper.localUdpServerPort) {
@@ -443,14 +619,14 @@ public class ConnectionMapper {
             //please refer to CoAPHTTPGateway - Sequenzdiagramm.pdf
             if (request instanceof UdpRequest) {
                 //request is a UDP request to a TCP server
-                ConnectionMapper.logger.debug("TUN IF: UDP / UDP Request at " + request);
+                ConnectionMapper.log.debug("TUN IF: UDP / UDP Request at " + request);
                 readPacket.setSourceIP(request.getDestIP());
                 readPacket.setSourcePort(request.getDestPort());
                 readPacket.setDestIP(request.getSourceIP());
                 readPacket.setDestPort(request.getSourcePort());
             } else {
                 //request is a TCP request to a UDP server
-                ConnectionMapper.logger.debug("TUN IF: UDP / TCP Request at " + request);
+                ConnectionMapper.log.debug("TUN IF: UDP / TCP Request at " + request);
                 readPacket.setSourceIP(request.getSourceIP());
                 readPacket.setSourcePort(request.getSourcePort());
                 readPacket.setDestIP(request.getDestIP());
@@ -459,7 +635,16 @@ public class ConnectionMapper {
             byte[] encodedPacket = readPacket.encode();
             tun.write(encodedPacket, encodedPacket.length);
         }
-    }    
+    }
+
+    public static void main(String[] args) throws SocketException, URISyntaxException, Exception {
+
+        Logger.getLogger(ConnectionMapper.class.getPackage().getName()).addAppender(new ConsoleAppender(new SimpleLayout()));
+        Logger.getLogger(ConnectionMapper.class.getPackage().getName()).setLevel(Level.DEBUG);
+
+
+        start("eth1", "eth0", "tun0", 5683, 80);
+    }
 }
 /**
  * This thread reads data from a network interface and sends it after modifying
@@ -484,7 +669,7 @@ class TcpNetIfPcapThread extends Thread {
             try {
                 ConnectionMapper.mapTCPNetIF(pcap, buffer, tun, blockedSourceMac);
             } catch (Exception ex) {
-                ConnectionMapper.logger.error("TcpNetIfPcapThread: " + ex);
+                ConnectionMapper.log.error("TcpNetIfPcapThread: " + ex);
             }
         }
     }
@@ -513,7 +698,7 @@ class UdpNetIfPcapThread extends Thread {
             try {
                 ConnectionMapper.mapUDPNetIF(pcap, buffer, tun, blockedSourceMac);
             } catch (Exception ex) {
-                ConnectionMapper.logger.error("UdpNetIfPcapThread: " + ex);
+                ConnectionMapper.log.error("UdpNetIfPcapThread: " + ex);
             }
         }
     }
@@ -538,7 +723,7 @@ class TunNetIfThread extends Thread {
             try {
                 ConnectionMapper.mapTUNNetIF(tun, buffer);
             } catch (Exception ex) {
-                ConnectionMapper.logger.error("TunNetIfThread: " + ex);
+                ConnectionMapper.log.error("TunNetIfThread: " + ex);
             }
         }
     }

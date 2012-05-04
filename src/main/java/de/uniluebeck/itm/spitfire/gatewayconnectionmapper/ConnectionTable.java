@@ -474,7 +474,7 @@ public class ConnectionTable {
             Request r = list.get(i);
             if (r.isTimedOut()) {
                 list.remove(i);
-                ConnectionMapper.logger.debug("TABLE: Connection timed out: " + r);
+                ConnectionMapper.log.debug("TABLE: Connection timed out: " + r);
             }
         }
     }
@@ -498,7 +498,7 @@ public class ConnectionTable {
                     cleanList(table.udpRequests);
                     Thread.sleep(INTERVALL);
                 } catch (InterruptedException ex) {
-                    ConnectionMapper.logger.fatal("Exception in List cleaner: " + ex);
+                    ConnectionMapper.log.fatal("Exception in List cleaner: " + ex);
                 }
             }
         }

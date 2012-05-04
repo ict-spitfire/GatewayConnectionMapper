@@ -26,12 +26,10 @@ package de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces;
 
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
 import java.io.IOException;
-import java.util.Date;
+
 import org.jnetpcap.Pcap;
 import org.jnetpcap.PcapHeader;
 import org.jnetpcap.nio.JBuffer;
-import org.jnetpcap.packet.PcapPacket;
-import org.jnetpcap.packet.PcapPacketHandler;
 
 /**
  * This class represents a Pcap interface which has the capability to read data
@@ -58,7 +56,7 @@ public class PcapIF implements IFReader {
         int timeout = 0;
         pcap = Pcap.openLive(ifName, snaplen, flags, timeout, errbuf);
         if (pcap == null) {
-            ConnectionMapper.logger.error("Error while opening device for capture: "
+            ConnectionMapper.log.error("Error while opening device for capture: "
                     + errbuf.toString());
         }
     }
