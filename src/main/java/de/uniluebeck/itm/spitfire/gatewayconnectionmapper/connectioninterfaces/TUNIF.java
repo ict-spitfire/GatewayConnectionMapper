@@ -26,6 +26,7 @@ package de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces;
 
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6;
+import org.apache.log4j.Logger;
 
 /**
  * This class represents a TUN interface which has the capability to read
@@ -38,6 +39,8 @@ import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6;
  */
 public class TUNIF implements IFReadWriter {
 
+    private static Logger log = Logger.getLogger(TUNIF.class.getName());
+    
     //system name of the TUN interface
     String interfaceName;
     //instance of connection mapper is only needed to call native methods
@@ -53,6 +56,8 @@ public class TUNIF implements IFReadWriter {
         this.interfaceName = tunIF;
         //allocate TUN interface
         fileDescriptor = connectionMapper.tun_alloc(tunIF);
+        log.debug("TUN interface has fileDescriptor: " + fileDescriptor);
+        
     }
 
     /**

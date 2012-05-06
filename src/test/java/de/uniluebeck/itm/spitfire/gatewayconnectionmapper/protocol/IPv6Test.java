@@ -59,7 +59,7 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet instance = new IPv6Packet(org);
+        IPv6 instance = new IPv6(org);
         byte[] expResult = Tools.copyArray(org);
         byte[] result = instance.encode();
         assertTrue(Arrays.equals(expResult, result));
@@ -75,7 +75,7 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet instance = new IPv6Packet(org);
+        IPv6 instance = new IPv6(org);
         InetAddress expResult = InetAddress.getByName("fc00::22");
         InetAddress result = instance.getDestIP();
         assertEquals(expResult, result);
@@ -91,7 +91,7 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet instance = new IPv6Packet(org);
+        IPv6 instance = new IPv6(org);
         int expResult = 80;
         int result = instance.getDestPort();
         assertEquals(expResult, result);
@@ -107,7 +107,7 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet instance = new IPv6Packet(org);
+        IPv6 instance = new IPv6(org);
         InetAddress expResult = InetAddress.getByName("fc00::11");
         InetAddress result = instance.getSourceIP();
         assertEquals(expResult, result);
@@ -123,7 +123,7 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet instance = new IPv6Packet(org);
+        IPv6 instance = new IPv6(org);
         int expResult = 25555;
         int result = instance.getSourcePort();
         assertEquals(expResult, result);
@@ -139,14 +139,14 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet tcpinstance = new IPv6Packet(tcp);
+        IPv6 tcpinstance = new IPv6(tcp);
 
         byte[] udp = getBytes(getByteArrayFromString("0000fffe000000000000"
                 + "0000000086dd6000000000291140fc000000000000000000000000000033"
                 + "fc000000000000000000000000000031faa98235002980f24501c95b5866"
                 + "6330303a3a323221502578616d707002747428b86455026959fe9f"
                 + "000000001030306"), 16, 81);
-        IPv6Packet udpinstance = new IPv6Packet(udp);
+        IPv6 udpinstance = new IPv6(udp);
 
         assertTrue(tcpinstance.isTCP());
         assertFalse(udpinstance.isTCP());
@@ -162,14 +162,14 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet tcpinstance = new IPv6Packet(tcp);
+        IPv6 tcpinstance = new IPv6(tcp);
 
         byte[] udp = getBytes(getByteArrayFromString("0000fffe000000000000"
                 + "0000000086dd6000000000291140fc000000000000000000000000000033"
                 + "fc000000000000000000000000000031faa98235002980f24501c95b5866"
                 + "6330303a3a323221502578616d707002747428b86455026959fe9f"
                 + "000000001030306"), 16, 81);
-        IPv6Packet udpinstance = new IPv6Packet(udp);
+        IPv6 udpinstance = new IPv6(udp);
 
         assertFalse(tcpinstance.isUDP());
         assertTrue(udpinstance.isUDP());
@@ -185,7 +185,7 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet instance = new IPv6Packet(org);
+        IPv6 instance = new IPv6(org);
         byte[] expResult = getBytes(org, 56-16, 40);
         byte[] result = instance.getPayload();
         assertTrue(Arrays.equals(expResult, result));
@@ -201,7 +201,7 @@ public class IPv6Test extends TestCase {
                 + "0000000000000000000000000002263d300508f90888700000000a002168"
                 + "0dae80000020405a00402080a02b0df8c0"
                 + "000000001030306"), 16, 80);
-        IPv6Packet instance = new IPv6Packet(org);
+        IPv6 instance = new IPv6(org);
         int expResult = 6;
         int result = instance.getNextHeader();
         assertEquals(expResult, result);

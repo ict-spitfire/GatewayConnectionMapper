@@ -27,7 +27,7 @@ package de.uniluebeck.itm.spitfire.gatewayconnectionmapper;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.IFReadWriter;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.IFReader;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.EthernetFrame;
-import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6Packet;
+import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.LinkedList;
@@ -54,7 +54,8 @@ public class ConnectionMapperTest extends TestCase {
     private byte[] modEthPacket(byte[] src, String srcIP, int srcPort,
             String destIP, int destPort) throws Exception {
         EthernetFrame f = new EthernetFrame(src);
-        IPv6Packet p = new IPv6Packet(f.getPayload());
+        //IPv6Packet p = new IPv6Packet(f.getPayload());
+        IPv6 p = new IPv6(f.getPayload());
         p.setSourceIP(InetAddress.getByName(srcIP));
         p.setSourcePort(srcPort);
         p.setDestIP(InetAddress.getByName(destIP));
@@ -86,7 +87,7 @@ public class ConnectionMapperTest extends TestCase {
         VirtualTunIF tun = new VirtualTunIF();
         byte[] p1eth = modEthPacket(udpPacket, "fc00::11", 4444, "fc00::22", ConnectionMapper.virtualUDPServerPort);
         System.out.println("SimulateReceivingPcap2: "
-                + new IPv6Packet(new EthernetFrame(p1eth).getPayload()));
+                + new IPv6(new EthernetFrame(p1eth).getPayload()));
         pcap.addData(p1eth);
         byte[] buffer = new byte[1900];
         byte[] blockedSourceMac = getHWaddrAsBytes("01:23:45:67:89:00");
@@ -95,7 +96,7 @@ public class ConnectionMapperTest extends TestCase {
         
         //check tun written
         Thread.sleep(20); //wait for data in case of multithreading
-        IPv6Packet p = new IPv6Packet(tun.readLastSend());
+        IPv6 p = new IPv6(tun.readLastSend());
         System.out.println("VirtualTUNwritten: " + p);
         assertEquals(p.getSourceIP(), InetAddress.getByName(ConnectionMapper.tunVirtualUdpIP));
         int mappedPort = p.getSourcePort();
@@ -103,7 +104,7 @@ public class ConnectionMapperTest extends TestCase {
         assertEquals(p.getDestPort(), ConnectionMapper.localUdpServerPort);
         
         //simulate tcp request on tun
-        p = new IPv6Packet(getIPpacket(tcpPacket));
+        p = new IPv6(getIPpacket(tcpPacket));
         p.setSourceIP(InetAddress.getByName(ConnectionMapper.tunBoundIP));
         int localTcpPort = 22222;
         p.setSourcePort(localTcpPort);
@@ -116,7 +117,7 @@ public class ConnectionMapperTest extends TestCase {
 
         //check tun written
         Thread.sleep(20); //wait for data in case of multithreading
-        p = new IPv6Packet(tun.readLastSend());
+        p = new IPv6(tun.readLastSend());
         System.out.println("VirtualTUNwritten: " + p);
         assertEquals(p.getSourceIP(), InetAddress.getByName("fc00::11"));
         assertEquals(p.getSourcePort(), localTcpPort);
@@ -126,14 +127,14 @@ public class ConnectionMapperTest extends TestCase {
          //simulate eth0 receive tcp answer
         p1eth = modEthPacket(tcpPacket, "fc00::22", ConnectionMapper.virtualTCPServerPort, "fc00::11", localTcpPort);
         System.out.println("SimulateReceivingPcap1: "
-                + new IPv6Packet(new EthernetFrame(p1eth).getPayload()));
+                + new IPv6(new EthernetFrame(p1eth).getPayload()));
         pcap.addData(p1eth);
 
         ConnectionMapper.mapTCPNetIF(pcap, buffer, tun, blockedSourceMac);
 
         //check tun written
         Thread.sleep(20); //wait for data in case of multithreading
-        p = new IPv6Packet(tun.readLastSend());
+        p = new IPv6(tun.readLastSend());
         System.out.println("VirtualTUNwritten: " + p);
         assertEquals(p.getSourceIP(), InetAddress.getByName(ConnectionMapper.tunVirtualTcpIP));
         assertEquals(p.getSourcePort(), mappedPort);
@@ -141,7 +142,7 @@ public class ConnectionMapperTest extends TestCase {
         assertEquals(p.getDestPort(), localTcpPort);
 
         //simulate udp answer on tun
-        p = new IPv6Packet(getIPpacket(udpPacket));
+        p = new IPv6(getIPpacket(udpPacket));
         p.setSourceIP(InetAddress.getByName(ConnectionMapper.tunBoundIP));
         p.setSourcePort(ConnectionMapper.localUdpServerPort);
         p.setDestIP(InetAddress.getByName(ConnectionMapper.tunVirtualUdpIP));
@@ -153,7 +154,7 @@ public class ConnectionMapperTest extends TestCase {
 
         //check tun written
         Thread.sleep(20); //wait for data in case of multithreading
-        p = new IPv6Packet(tun.readLastSend());
+        p = new IPv6(tun.readLastSend());
         System.out.println("VirtualTUNwritten: " + p);
         assertEquals(p.getSourceIP(), InetAddress.getByName("fc00::22"));
         assertEquals(p.getSourcePort(), ConnectionMapper.virtualUDPServerPort);
@@ -180,7 +181,7 @@ public class ConnectionMapperTest extends TestCase {
         VirtualTunIF tun = new VirtualTunIF();
         byte[] p1eth = modEthPacket(tcpPacket, "fc00::22", 30000, "fc00::11", ConnectionMapper.virtualTCPServerPort);
         System.out.println("SimulateReceivingPcap1: "
-                + new IPv6Packet(new EthernetFrame(p1eth).getPayload()));
+                + new IPv6(new EthernetFrame(p1eth).getPayload()));
         pcap.addData(p1eth);
         byte[] buffer = new byte[1900];
         byte[] blockedSourceMac = getHWaddrAsBytes("01:23:45:67:89:00");
@@ -189,7 +190,7 @@ public class ConnectionMapperTest extends TestCase {
 
         //check tun written
         Thread.sleep(20); //wait for data in case of multithreading
-        IPv6Packet p = new IPv6Packet(tun.readLastSend());
+        IPv6 p = new IPv6(tun.readLastSend());
         System.out.println("VirtualTUNwritten: " + p);
         assertEquals(p.getSourceIP(), InetAddress.getByName(ConnectionMapper.tunVirtualTcpIP));
         int mappedPort = p.getSourcePort();
@@ -197,7 +198,7 @@ public class ConnectionMapperTest extends TestCase {
         assertEquals(p.getDestPort(), ConnectionMapper.localTcpServerPort);
 
         //simulate udp request on tun
-        p = new IPv6Packet(getIPpacket(udpPacket));
+        p = new IPv6(getIPpacket(udpPacket));
         p.setSourceIP(InetAddress.getByName(ConnectionMapper.tunBoundIP));
         int localUdpPort = 43210;
         p.setSourcePort(localUdpPort);
@@ -210,7 +211,7 @@ public class ConnectionMapperTest extends TestCase {
 
         //check tun written
         Thread.sleep(20); //wait for data in case of multithreading
-        p = new IPv6Packet(tun.readLastSend());
+        p = new IPv6(tun.readLastSend());
         System.out.println("VirtualTUNwritten: " + p);
         assertEquals(p.getSourceIP(), InetAddress.getByName("fc00::22"));
         assertEquals(p.getSourcePort(), 30000);
@@ -220,14 +221,14 @@ public class ConnectionMapperTest extends TestCase {
         //simulate eth1 receive udp answer
         p1eth = modEthPacket(udpPacket, "fc00::11", ConnectionMapper.virtualUDPServerPort, "fc00::22", 30000);
         System.out.println("SimulateReceivingPcap2: "
-                + new IPv6Packet(new EthernetFrame(p1eth).getPayload()));
+                + new IPv6(new EthernetFrame(p1eth).getPayload()));
         pcap.addData(p1eth);
 
         ConnectionMapper.mapUDPNetIF(pcap, buffer, tun, blockedSourceMac);
 
         //check tun written
         Thread.sleep(20); //wait for data in case of multithreading
-        p = new IPv6Packet(tun.readLastSend());
+        p = new IPv6(tun.readLastSend());
         System.out.println("VirtualTUNwritten: " + p);
         assertEquals(p.getSourceIP(), InetAddress.getByName(ConnectionMapper.tunVirtualUdpIP));
         assertEquals(p.getSourcePort(), mappedPort);
@@ -235,7 +236,7 @@ public class ConnectionMapperTest extends TestCase {
         assertEquals(p.getDestPort(), localUdpPort);
 
         //simulate tcp answer on tun
-        p = new IPv6Packet(getIPpacket(tcpPacket));
+        p = new IPv6(getIPpacket(tcpPacket));
         p.setSourceIP(InetAddress.getByName(ConnectionMapper.tunBoundIP));
         p.setSourcePort(ConnectionMapper.localTcpServerPort);
         p.setDestIP(InetAddress.getByName(ConnectionMapper.tunVirtualTcpIP));
@@ -247,7 +248,7 @@ public class ConnectionMapperTest extends TestCase {
 
         //check tun written
         Thread.sleep(20); //wait for data in case of multithreading
-        p = new IPv6Packet(tun.readLastSend());
+        p = new IPv6(tun.readLastSend());
         System.out.println("VirtualTUNwritten: " + p);
         assertEquals(p.getSourceIP(), InetAddress.getByName("fc00::11"));
         assertEquals(p.getSourcePort(), ConnectionMapper.virtualTCPServerPort);

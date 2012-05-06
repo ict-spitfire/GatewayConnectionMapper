@@ -185,41 +185,6 @@ public class ConnectionMapper {
         //TODO prevent starting when ConnectionMapper already runs
     }
 
-    /**
-     * Starts the GatewayConnectionMapper.
-     * The application which calls this function must have the right to
-     * access TUN Interfaces. User with CAP_NET_ADMIN capability or
-     * root under linux.
-     * 
-     * @param tunWrapperPath path to the TUN wrapper C library
-     * @param tunBoundIP IP which is bound to the TUN interface
-     * @param localUdpServerPort port on which the UDP server listens
-     * @param localHttpServerPort port on which the TCP server listens
-     * @param tunUdpIP UDP specific ip address in the tunBoundIP network
-     * @param tunTcpIP TCP specific ip address in the tunBoundIP network
-     * @param udpNetIf ethernet interface to the UDP network
-     * @param udpNetIfMac mac address of udpNetIf
-     * @param tcpNetIf ethernet interface to the TCP network
-     * @param tcpNetIfMac mac address of tcpNetIf
-     * @param tunNetIf tun interface name
-     * @param localBoundIPs
-     * @throws Exception will be thrown when starting fails
-     */
-    private static void start(String tunWrapperPath,
-            String tunBoundIP, int localUdpServerPort, int localHttpServerPort,
-            String tunUdpIP, String tunTcpIP,
-            String udpNetIf, String udpNetIfMac,
-            String tcpNetIf, String tcpNetIfMac,
-            String tunNetIf, List<InetAddress> localBoundIPs) throws Exception {
-
-        for (InetAddress a : localBoundIPs) {
-            ConnectionMapper.localBoundIPs.add(a);
-        }
-
-        start(tunWrapperPath, tunBoundIP, localUdpServerPort, 
-                localHttpServerPort, tunUdpIP, tunTcpIP, udpNetIf, udpNetIfMac, 
-                tcpNetIf, tcpNetIfMac, tunNetIf, localBoundIPs);
-    }
 
     public static void start(String udpNetworkInterfaceName, String tcpNetworkInterfaceName,
                              String tunNetworkInterfaceName, int udpServerPort, int tcpServerPort)
@@ -242,8 +207,11 @@ public class ConnectionMapper {
         outputStream.close();
 
         log.debug("Path of library 'libTUNWrapperCdl.so': " + libFile.getAbsolutePath());
-
         log.debug("File exists: " + libFile.exists());
+        
+        String cmd[] = {"chmod", "755", libFile.getAbsolutePath()};
+        Process p = Runtime.getRuntime().exec(cmd);
+        log.debug("chmod finished with code: " + p.waitFor());
         
         //UDP network interface
         NetworkInterface udpNetworkInterface = NetworkInterface.getByName(udpNetworkInterfaceName);
@@ -294,7 +262,7 @@ public class ConnectionMapper {
 
         List<Inet6Address> tunNetworkInterfaceIpv6Addresses = getGlobalUniqueIpv6Addresses(tunNetworkInterface);
         if(tunNetworkInterfaceIpv6Addresses.size() < 1){
-            throw new SocketException("1 bound global unique IPv6 address for TCPnetwork interface (" +
+            throw new SocketException("1 bound global unique IPv6 address for TUN network interface (" +
                     tcpNetworkInterface.getName() + ") necessary but only " +
                     tunNetworkInterfaceIpv6Addresses.size() + " are bound.");
         }
@@ -698,7 +666,7 @@ class UdpNetIfPcapThread extends Thread {
             try {
                 ConnectionMapper.mapUDPNetIF(pcap, buffer, tun, blockedSourceMac);
             } catch (Exception ex) {
-                ConnectionMapper.log.error("UdpNetIfPcapThread: " + ex);
+                ConnectionMapper.log.error("UdpNetIfPcapThread: " + ex.getStackTrace());
             }
         }
     }
