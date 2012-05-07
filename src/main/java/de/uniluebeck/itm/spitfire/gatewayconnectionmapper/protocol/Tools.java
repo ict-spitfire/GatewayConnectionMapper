@@ -156,7 +156,7 @@ public class Tools {
                 String s = "080027248bea080027a7fe7686dd600000000020063ffc000000000000000000000000000022fc000000000000000000000000000011d8581f915584bfaa570febaa8011005a174800000101080a008a070d008a0ef2";
         byte[] ethfrB = getByteArrayFromStringDebug(s);
         EthernetFrame ethfr = new EthernetFrame(ethfrB);
-        IPv6 ipv6 = new IPv6(ethfr.getPayload());
+        IPv6Packet ipv6 = new IPv6Packet(ethfr.getPayload());
         byte[] ipv6B = ipv6.encode();
         byte[] checksum = getBytes(ethfrB, 70, 2);
         System.out.println("Org : " + getBytesAsString(checksum));

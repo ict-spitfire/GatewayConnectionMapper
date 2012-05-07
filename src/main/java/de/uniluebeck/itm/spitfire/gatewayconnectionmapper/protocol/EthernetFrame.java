@@ -136,7 +136,7 @@ public class EthernetFrame {
 
     /**
      * Returns true if type is 0x86DD.
-     * @return True if IPv6, false else
+     * @return True if IPv6Packet, false else
      */
     public boolean isIPv6() {
         return byteArrayEquals(type, IPv6_TYPE);
