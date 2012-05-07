@@ -24,7 +24,8 @@
  */
 package de.uniluebeck.itm.spitfire.gatewayconnectionmapper;
 
-import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6;
+import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6Packet;
+
 import java.net.InetAddress;
 import java.util.LinkedList;
 import java.util.List;
@@ -80,55 +81,55 @@ public class ConnectionTable {
 
     /**
      * Map a incoming TCP request.
-     * @param packet IPv6 packet
+     * @param packet IPv6Packet packet
      * @return unique local port ('mapped port')
      */
-    public int mapTcpRequest(IPv6 packet) {
+    public int mapTcpRequest(IPv6Packet packet) {
         return mapRequest(tcpRequests, packet, true);
     }
     
     /**
      * Map a incoming UDP request.
-     * @param packet IPv6 packet
+     * @param packet IPv6Packet packet
      * @return unique local port ('mapped port')
      */
-    public int mapUdpRequest(IPv6 packet) {
+    public int mapUdpRequest(IPv6Packet packet) {
         return mapRequest(udpRequests, packet, false);
     }
 
     /**
      * Get mapped port for a tcp request.
-     * @param packet IPv6 packet
+     * @param packet IPv6Packet packet
      * @return unique local port ('mapped port') if exists, -1 else
      */
-    public int getMappedPortFromTcpRequest(IPv6 packet) {
+    public int getMappedPortFromTcpRequest(IPv6Packet packet) {
         return getMappedPortFromRequest(tcpRequests, packet);
     }
 
     /**
      * Get mapped port for a udp request.
-     * @param packet IPv6 packet
+     * @param packet IPv6Packet packet
      * @return unique local port ('mapped port') if exists, -1 else
      */
-    public int getMappedPortFromUdpRequest(IPv6 packet) {
+    public int getMappedPortFromUdpRequest(IPv6Packet packet) {
         return getMappedPortFromRequest(udpRequests, packet);
     }
 
     /**
      * Get mapped port for a UDPResponse for a TCPRequest.
-     * @param packet IPv6 packet
+     * @param packet IPv6Packet packet
      * @return unique local port ('mapped port') if exists, -1 else
      */
-    public int getMappedPortFromUDPResponseForTCPRequest(IPv6 packet) {
+    public int getMappedPortFromUDPResponseForTCPRequest(IPv6Packet packet) {
         return getMappedPortFromResponse(tcpRequests, packet);
     }
 
     /**
      * Get mapped port for a TCPResponse for a UDPRequest.
-     * @param packet IPv6 packet
+     * @param packet IPv6Packet packet
      * @return unique local port ('mapped port') if exists, -1 else
      */
-    public int getMappedPortFromTCPResponseForUDPRequest(IPv6 packet) {
+    public int getMappedPortFromTCPResponseForUDPRequest(IPv6Packet packet) {
         UdpRequest orgRequest = getUDPRequestFromLocalTcpPort(packet.getDestPort());
         if (orgRequest == null) {
             return -1;
@@ -197,11 +198,11 @@ public class ConnectionTable {
      * Map a request. This means: Looking if the request already exists if
      * not, a new entry will be generated.
      * @param requestList TCP or UDP request list
-     * @param packet IPv6 packet
+     * @param packet IPv6Packet packet
      * @param isTCP true if it is the TCP request list
      * @return mapped port
      */
-    private synchronized int mapRequest(List<Request> requestList, IPv6 packet,
+    private synchronized int mapRequest(List<Request> requestList, IPv6Packet packet,
             boolean isTCP) {
         int port = getMappedPortFromRequest(requestList, packet);
         if (port == -1) {
@@ -218,7 +219,7 @@ public class ConnectionTable {
      * @return 
      */
     private synchronized static int getMappedPortFromRequest(List<Request> requestList,
-            IPv6 packet) {
+            IPv6Packet packet) {
         for (Request r : requestList) {
             if (r.getSourcePort() == packet.getSourcePort() &&
                     r.getSourceIP().equals(packet.getSourceIP()) &&
@@ -231,7 +232,7 @@ public class ConnectionTable {
     }
 
     private synchronized static int getMappedPortFromResponse(List<Request> list,
-            IPv6 p) {
+            IPv6Packet p) {
         for (Request r : list) {
             if (r.getSourceIP().equals(p.getDestIP()) &&
                     r.getSourcePort() == p.getDestPort() &&
@@ -315,11 +316,11 @@ public class ConnectionTable {
 
         /**
          * Create a new Request. Source/Dest. IP and Port will be copied from
-         * the passed IPv6 packet.
-         * @param p IPv6 packet
+         * the passed IPv6Packet packet.
+         * @param p IPv6Packet packet
          * @param mappedPort
          */
-        public Request(IPv6 p, int mappedPort) {
+        public Request(IPv6Packet p, int mappedPort) {
             this(mappedPort, p.getSourceIP(), p.getSourcePort(), p.getDestIP(), p.getDestPort());
         }
 
@@ -335,7 +336,7 @@ public class ConnectionTable {
 
         /**
          * Get the destination IP.
-         * @return IPv6 IP
+         * @return IPv6Packet IP
          */
         public InetAddress getDestIP() {
             return destIP;
@@ -367,7 +368,7 @@ public class ConnectionTable {
 
         /**
          * Get the source IP.
-         * @return IPv6 IP
+         * @return IPv6Packet IP
          */
         public InetAddress getSourceIP() {
             return sourceIP;
@@ -442,7 +443,7 @@ public class ConnectionTable {
             super(mappedPort, sourceIP, sourcePort, destIP, destPort);
         }
         
-        public TcpRequest(IPv6 p, int mappedPort) {
+        public TcpRequest(IPv6Packet p, int mappedPort) {
             super(p, mappedPort);
         }
         
@@ -459,7 +460,7 @@ public class ConnectionTable {
             super(mappedPort, sourceIP, sourcePort, destIP, destPort);
         }
 
-        public UdpRequest(IPv6 p, int mappedPort) {
+        public UdpRequest(IPv6Packet p, int mappedPort) {
             super(p, mappedPort);
         }
 

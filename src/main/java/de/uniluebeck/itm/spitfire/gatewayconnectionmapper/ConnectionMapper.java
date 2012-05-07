@@ -32,21 +32,18 @@ import java.net.*;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.IFReadWriter;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.IFReader;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import static de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionTable.*;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.PcapIF;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces.TUNIF;
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.EthernetFrame;
-import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6;
+import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6Packet;
 
 import java.util.Enumeration;
 import java.util.List;
 
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.Tools;
 import org.apache.log4j.*;
-import sun.misc.IOUtils;
 
 import static de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.Tools.*;
 
@@ -218,11 +215,11 @@ public class ConnectionMapper {
         
         List<Inet6Address> udpNetworkInterfaceIpv6Addresses = getGlobalUniqueIpv6Addresses(udpNetworkInterface);
         if(udpNetworkInterfaceIpv6Addresses.isEmpty()){
-            throw new SocketException("No global unique IPv6 address for UDP network interface (" +
+            throw new SocketException("No global unique IPv6Packet address for UDP network interface (" +
                 udpNetworkInterface.getName() + ").");
         }
 
-        localBoundIPs.add(udpNetworkInterfaceIpv6Addresses.get(0));
+        localBoundIPs.addAll(udpNetworkInterfaceIpv6Addresses);
 
         String udpNetworkInterfaceIpv6Address =
                 removeScopeAndShorten(getGlobalUniqueIpv6Addresses(udpNetworkInterface).get(0).getHostAddress());
@@ -239,10 +236,10 @@ public class ConnectionMapper {
 
         List<Inet6Address> tcpNetworkInterfaceIpv6Addresses = getGlobalUniqueIpv6Addresses(tcpNetworkInterface);
         if(tcpNetworkInterfaceIpv6Addresses.isEmpty()){
-            throw new SocketException("No global unique IPv6 address for TCPnetwork interface (" +
+            throw new SocketException("No global unique IPv6Packet address for TCPnetwork interface (" +
                     tcpNetworkInterface.getName() + ").");
         }
-        localBoundIPs.add(tcpNetworkInterfaceIpv6Addresses.get(0));
+        localBoundIPs.addAll(tcpNetworkInterfaceIpv6Addresses);
 
         String tcpNetworkInterfaceIpv6Address =
                 removeScopeAndShorten(tcpNetworkInterfaceIpv6Addresses.get(0).getHostAddress());
@@ -262,7 +259,7 @@ public class ConnectionMapper {
 
         List<Inet6Address> tunNetworkInterfaceIpv6Addresses = getGlobalUniqueIpv6Addresses(tunNetworkInterface);
         if(tunNetworkInterfaceIpv6Addresses.size() < 1){
-            throw new SocketException("1 bound global unique IPv6 address for TUN network interface (" +
+            throw new SocketException("1 bound global unique IPv6Packet address for TUN network interface (" +
                     tcpNetworkInterface.getName() + ") necessary but only " +
                     tunNetworkInterfaceIpv6Addresses.size() + " are bound.");
         }
@@ -279,12 +276,12 @@ public class ConnectionMapper {
 //        String tunUdpNetworkInterfaceIpv6Address =
 //                removeScopeAndShorten(getGlobalUniqueIpv6Addresses(tunNetworkInterface).get(1).getHostAddress());
         String tunUdpNetworkInterfaceIpv6Address = "fd00::33";
-        log.debug("TUN UDP network interface global IPv6 address: " + tunUdpNetworkInterfaceIpv6Address);
+        log.debug("TUN UDP network interface global IPv6Packet address: " + tunUdpNetworkInterfaceIpv6Address);
 
 //        String tunTcpNetworkInterfaceIpv6Address =
 //                removeScopeAndShorten(getGlobalUniqueIpv6Addresses(tunNetworkInterface).get(2).getHostAddress());
         String tunTcpNetworkInterfaceIpv6Address = "fd00::32";
-        log.debug("TUN TCP network interface global IPv6 address: " + tunTcpNetworkInterfaceIpv6Address);
+        log.debug("TUN TCP network interface global IPv6Packet address: " + tunTcpNetworkInterfaceIpv6Address);
         
 
         start(libFile.getAbsolutePath(), tunNetworkInterfaceIpv6Address, udpServerPort, tcpServerPort,
@@ -314,12 +311,14 @@ public class ConnectionMapper {
             InetAddress address = networkInterfaceInetAddresses.nextElement();
             try{
                 if(isGlobalUnicastAddress((Inet6Address) address)){
+                    log.debug("New global unique IPv6 address for " + networkInterface.getName() + ": " +
+                        address.getHostAddress() + " found.");
                     result.add((Inet6Address) address);
                 }
             }
             catch(ClassCastException e){
                 log.debug("Address for interface " + networkInterface.getName() + " is no global unique " +
-                        "IPv6 address: " + address.getHostAddress() + ". Trying next one (if any).");
+                        "IPv6Packet address: " + address.getHostAddress() + ". Trying next one (if any).");
             }
         }
         
@@ -358,11 +357,11 @@ public class ConnectionMapper {
 
 
     /**
-     * Test if destination of an IPv6 packet is a local bound ip.
-     * @param packet IPv6 packet
+     * Test if destination of an IPv6Packet packet is a local bound ip.
+     * @param packet IPv6Packet packet
      * @return True if destination address is locally bound.
      */
-    public static synchronized boolean targetIsBoundIP(IPv6 packet) {
+    public static synchronized boolean targetIsBoundIP(IPv6Packet packet) {
         for (InetAddress a : localBoundIPs) {
             if (a.equals(packet.getDestIP())) {
                 return true;
@@ -372,11 +371,11 @@ public class ConnectionMapper {
     }
     
     /**
-     * Read a single IPv6 packet and modify its connection data. (UDP side)
+     * Read a single IPv6Packet packet and modify its connection data. (UDP side)
      * @param pcap UDP side pcap interface to read data from
      * @param buffer Buffer in which the read data will be stored
      * @param tun TUN interface to write the modified packet
-     * @param blockedSourceMac If the IPv6 packet has this source mac, it will
+     * @param blockedSourceMac If the IPv6Packet packet has this source mac, it will
      * be ignored
      * @throws Exception 
      */
@@ -386,11 +385,11 @@ public class ConnectionMapper {
         byte[] framePayload = frame.getPayload();
         if (frame.isIPv6() && !byteArrayEquals(frame.getSourceMac(), blockedSourceMac)) {
             //process incoming traffic only
-            IPv6 readPacket = null;
+            IPv6Packet readPacket = null;
             try {
-                readPacket = new IPv6(framePayload);
+                readPacket = new IPv6Packet(framePayload);
             } catch (Exception e) {
-                log.debug("UDP IF: Non IPv6 packet received. Will be ignored...");
+                log.debug("UDP IF: Non IPv6Packet packet received. Will be ignored...");
                 //drop packet
                 return;
             }
@@ -424,7 +423,7 @@ public class ConnectionMapper {
                     }
 
                     ConnectionMapper.log.debug("UDP IF: Incoming UDP packet mapped to " + request);
-                    //modify IPv6 packet
+                    //modify IPv6Packet packet
                     readPacket.setSourceIP(InetAddress.getByName(ConnectionMapper.tunVirtualUdpIP));
                     readPacket.setSourcePort(packetSourcePort);
                     readPacket.setDestIP(InetAddress.getByName(ConnectionMapper.tunBoundIP));
@@ -444,11 +443,11 @@ public class ConnectionMapper {
     }
 
     /**
-     * Read a single IPv6 packet and modify its connection data. (TCP side)
+     * Read a single IPv6Packet packet and modify its connection data. (TCP side)
      * @param pcap TCP side pcap interface to read data from
      * @param buffer Buffer in which the read data will be stored
      * @param tun TUN interface to write the modified packet
-     * @param blockedSourceMac If the IPv6 packet has this source mac, it will
+     * @param blockedSourceMac If the IPv6Packet packet has this source mac, it will
      * be ignored
      * @throws Exception 
      */
@@ -458,11 +457,11 @@ public class ConnectionMapper {
         byte[] framePayload = frame.getPayload();
         if (frame.isIPv6() && !byteArrayEquals(frame.getSourceMac(), blockedSourceMac)) {
             //process incoming traffic only
-            IPv6 readPacket = null;
+            IPv6Packet readPacket = null;
             try {
-                readPacket = new IPv6(framePayload);
+                readPacket = new IPv6Packet(framePayload);
             } catch (Exception e) {
-                log.debug("TCP IF: Non IPv6 packet received. Will be ignored...");
+                log.debug("TCP IF: Non IPv6Packet packet received. Will be ignored...");
                 //drop packet
                 return;
             }
@@ -497,7 +496,7 @@ public class ConnectionMapper {
                     }
 
                     ConnectionMapper.log.debug("TCP IF: Incoming TCP packet mapped to " + request);
-                    //modify IPv6 packet
+                    //modify IPv6Packet packet
                     readPacket.setSourceIP(InetAddress.getByName(ConnectionMapper.tunVirtualTcpIP));
                     readPacket.setSourcePort(packetSourcePort);
                     readPacket.setDestIP(InetAddress.getByName(ConnectionMapper.tunBoundIP));
@@ -517,14 +516,14 @@ public class ConnectionMapper {
     }
     
     /**
-     * Read a single IPv6 packet and modify its connection data. (TUN interface)
+     * Read a single IPv6Packet packet and modify its connection data. (TUN interface)
      * @param tun TUN interface
      * @param buffer Buffer in which the read data will be stored
      * @throws Exception 
      */
     static void mapTUNNetIF(IFReadWriter tun, byte[] buffer) throws Exception {
         int bytesRead = tun.read(buffer, buffer.length);
-        IPv6 readPacket = new IPv6(buffer, bytesRead);
+        IPv6Packet readPacket = new IPv6Packet(buffer, bytesRead);
         final ConnectionTable table = ConnectionTable.getInstance();
         if (readPacket.getDestIP().equals(InetAddress.getByName(ConnectionMapper.tunVirtualTcpIP))) {
             //readPacket contains TCP data

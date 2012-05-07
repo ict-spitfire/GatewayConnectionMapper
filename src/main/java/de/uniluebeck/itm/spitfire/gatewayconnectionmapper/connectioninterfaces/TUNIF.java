@@ -25,7 +25,7 @@
 package de.uniluebeck.itm.spitfire.gatewayconnectionmapper.connectioninterfaces;
 
 import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.ConnectionMapper;
-import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6;
+import de.uniluebeck.itm.spitfire.gatewayconnectionmapper.protocol.IPv6Packet;
 import org.apache.log4j.Logger;
 
 /**
@@ -92,12 +92,12 @@ public class TUNIF implements IFReadWriter {
     }
 
     /**
-     * Writes a IPv6 packet.
-     * @param packet IPv6 packet
+     * Writes a IPv6Packet packet.
+     * @param packet IPv6Packet packet
      * @return Number of bytes written
-     * @throws Exception Will be thrown when encoding of the IPv6 packet fails.
+     * @throws Exception Will be thrown when encoding of the IPv6Packet packet fails.
      */
-    public int write(IPv6 packet) throws Exception {
+    public int write(IPv6Packet packet) throws Exception {
         byte[] encodedPacket = packet.encode();
         return connectionMapper.tun_write(fileDescriptor, encodedPacket,
                 encodedPacket.length);
